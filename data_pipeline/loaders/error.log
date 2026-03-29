@@ -1,0 +1,17 @@
+[SUCCESS] MongoDB 'raw_reddit_posts': 0 new, 2 updated.
+[ERROR] Postgres Load Error: (psycopg2.errors.DatatypeMismatch) column "created_utc" is of type timestamp without time zone but expression is of type text
+LINE 3: ...id, title, content, ups, num_comments, subreddit, created_ut...
+                                                             ^
+HINT:  You will need to rewrite or cast the expression.
+
+[SQL: 
+                INSERT INTO reddit_trends (post_id, title, content, ups, num_comments, subreddit, created_utc)
+                SELECT post_id, title, content, ups, num_comments, subreddit, created_utc
+                FROM temp_reddit_trends
+                ON CONFLICT (post_id) DO UPDATE SET
+                    ups = EXCLUDED.ups,
+                    num_comments = EXCLUDED.num_comments,
+                    content = EXCLUDED.content,
+                    processed_at = CURRENT_TIMESTAMP;
+            ]
+(Background on this error at: https://sqlalche.me/e/20/f405)

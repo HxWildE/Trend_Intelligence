@@ -1,0 +1,15 @@
+[SUCCESS] MongoDB 'raw_reddit_posts': 0 new, 2 updated.
+[ERROR] Postgres Load Error: (psycopg2.errors.CardinalityViolation) ON CONFLICT DO UPDATE command cannot affect row a second time
+HINT:  Ensure that no rows proposed for insertion within the same command have duplicate constrained values.
+
+[SQL: 
+                INSERT INTO reddit_trends (post_id, title, content, ups, num_comments, subreddit, created_utc)
+                SELECT post_id, title, content, ups, num_comments, subreddit, created_utc
+                FROM temp_reddit_trends
+                ON CONFLICT (post_id) DO UPDATE SET
+                    ups = EXCLUDED.ups,
+                    num_comments = EXCLUDED.num_comments,
+                    content = EXCLUDED.content,
+                    processed_at = CURRENT_TIMESTAMP;
+            ]
+(Background on this error at: https://sqlalche.me/e/20/f405)

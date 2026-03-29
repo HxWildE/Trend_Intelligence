@@ -1,0 +1,26 @@
+services:
+  # 🐘 Postgres Database (SQL)
+  postgres_db:
+    image: postgres:15
+    container_name: trend_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: reddit_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  # 🍃 MongoDB Database (NoSQL)
+  mongodb:
+    image: mongo:latest
+    container_name: trend_mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  postgres_data:
+  mongo_data:
