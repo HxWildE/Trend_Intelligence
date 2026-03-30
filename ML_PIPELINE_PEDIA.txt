@@ -1,0 +1,116 @@
+===============================================================
+            ML PIPELINE WORKING PEDIA (FULL FLOW & FUNCTIONS)
+===============================================================
+
+This document explains the full end-to-end working of the Machine Learning 
+pipeline (`ml_engine`). It breaks down every module, what function it performs, 
+how data flows through it, and what it ultimately returns.
+
+---------------------------------------------------------------
+1. ENTRY POINT: The Setup
+---------------------------------------------------------------
+File: `test.py` or `data_pipeline` loaders.
+Function: Calls `pipeline.run(texts, "target state")`
+
+The pipeline expects a Python list of raw strings (e.g., social media posts, 
+news headlines) and a target string for geographical filtering.
+
+---------------------------------------------------------------
+2. THE ORCHESTRATORS (PIPELINES)
+---------------------------------------------------------------
+File: `ml_engine/pipelines/region_trend_pipeline.py`
+Class: `RegionTrendPipeline`
+- What it does: Acts as the first filter. 
+- Functions: 
+   - `run()`: Loops over the raw texts, sends them to the RegionService for 
+     geographical tagging, and drops any texts that don't match your target state. 
+     Then, it hands the surviving texts over to the `TrendPipeline`.
+
+File: `ml_engine/pipelines/trend_pipeline.py`
+Class: `TrendPipeline`
+- What it does: The core brain that stitches 7 different ML steps together.
+- Functions:
+   - `run()`: Takes the regionally-filtered texts and sequentially passes them 
+     through Preprocessing, Sentiment, Embedding, Clustering, Labeling, and Scoring.
+
+---------------------------------------------------------------
+3. STEP-BY-STEP FUNCTION BREAKDOWN 
+---------------------------------------------------------------
+
+STEP A: Region Detection
+Files: `region_service.py`, `ner.py`, `geo_mapper.py`
+- `LocationNER.extract_locations(text)`: Analyzes a sentence using spaCy 
+  (`en_core_web_sm`) to automatically extract entities flagged as Locations/GPEs 
+  (e.g., "Bangalore"). Also checks against a known slang alias list (e.g., "blr").
+- `GeoMapper.map_location()`: Converts cities to states (e.g., "blr" -> "bangalore" 
+  -> "karnataka") so the pipeline can filter accurately.
+
+STEP B: Preprocessing
+Files: `preprocessing/pipeline.py`
+- `PreprocessingPipeline.clean_text(text)`: Converts texts to lowercase, strips 
+  out URLs via Regex, removes special characters, and strips trailing spaces so 
+  the AI models don't get confused by garbage data.
+
+STEP C: Sentiment Analysis
+Files: `sentiment/inference.py`, `sentiment/sentiment_model.py`
+- `SentimentModel.predict(text)`: Uses NLTK's Vader Lexicon to evaluate the 
+  emotional tone of each individual cleaned text. 
+- Returns: A compound float score ranging from -1.0 (extremely negative) to 
+  +1.0 (extremely positive).
+
+STEP D: Embeddings (Semantic Understanding)
+Files: `topic_modeling/embeddings.py`
+- `EmbeddingModel.encode(texts)`: Uses the HuggingFace `sentence-transformers` 
+  library. It converts human sentences into high-dimensional mathematical vectors 
+  (arrays of numbers). Sentences with similar meanings will have vectors that 
+  are mathematically close to each other.
+
+STEP E: Clustering (Grouping Topics)
+Files: `topic_modeling/clustering.py`
+- `ClusterModel.fit(embeddings)`: Takes the vectors and uses Scikit-Learn's 
+  KMeans algorithm to group the sentences into clusters (topics). If 50 people 
+  are complaining about "traffic", KMeans puts their 50 mathematical vectors 
+  into the same bucket.
+- Returns: Integer Labels (e.g., `0`, `1`, `2`) indicating which topic bucket 
+  each sentence belongs to.
+
+STEP F: Topic Labeling
+Files: `topic_modeling/labeling.py`
+- `TopicLabeler.get_topic_labels(texts, labels)`: Takes all sentences inside 
+  a specific cluster bucket and passes them through a TF-IDF Vectorizer. 
+  TF-IDF identifies which words are highly unique to that specific bucket 
+  compared to the rest of the dataset.
+- Returns: The top 5 descriptive keywords defining that topic (e.g., `["heavy", 
+  "rain", "flood", "chennai", "disaster"]`).
+
+STEP G: Trend Scoring
+Files: `trend_detection/scoring.py`, `velocity.py`, `acceleration.py`
+- `VelocityCalculator`: Looks at historical counts vs current volume to see how 
+  fast a topic is growing.
+- `AccelerationCalculator`: Looks at historical velocity vs current velocity to 
+  determine momentum (is it dying down or speeding up?).
+- `TrendScorer.compute_score()`: A mathematical formula that combines Volume, 
+  Velocity, Acceleration, and average Sentiment to spit out a single definitive 
+  number (e.g., `85.4`).
+
+---------------------------------------------------------------
+4. FINAL STAGE: WHAT IS RETURNED?
+---------------------------------------------------------------
+The `TrendPipeline` aggregates all the data from Step G, associates it with the 
+keywords from Step F, sorts them by the highest score, and returns an array of 
+Dictionaries back to `test.py` or the Backend API.
+
+FORMAT RETURNED:
+A Python List containing Dictionaries.
+[
+    {
+        "topic_id": 0,                          # The KMeans bucket ID
+        "keywords": ["rain", "heavy", "flood"], # Top 5 TF-IDF words
+        "volume": 150,                          # Number of posts in this bucket
+        "velocity": 5.2,                        # Growth rate
+        "acceleration": 0.8,                    # Momentum rate
+        "sentiment": -0.65,                     # Average Vader sentiment
+        "score": 92.4                           # Consolidated Trend Score
+    },
+    { ... next topic ... }
+]

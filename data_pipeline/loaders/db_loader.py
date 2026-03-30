@@ -18,6 +18,18 @@ class DataLoader:
         """Upserts a pandas DataFrame into a Postgres table using a temp table."""
         try:
             engine = create_engine(self.pg_url)
+            
+            # Ensure the table schema exists before inserting data
+            schema_path = os.path.join(config.BASE_DIR, "database", "postgres", "schema.sql")
+            if os.path.exists(schema_path):
+                with open(schema_path, 'r', encoding='utf-8') as f:
+                    schema_sql = f.read()
+                
+                with engine.begin() as conn:
+                    conn.execute(text(schema_sql))
+            else:
+                print(f"[WARNING] Postgres schema file not found at {schema_path}")
+
             temp_table = f"temp_{table_name}"
 
             # 1. Load data to a temporary table

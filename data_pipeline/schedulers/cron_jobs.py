@@ -12,12 +12,17 @@ COLLECTOR = os.path.join(BASE_DIR, "collectors", "reddit_collector.py")
 PROCESSOR = os.path.join(BASE_DIR, "processors", "raw_to_clean.py")
 LOADER = os.path.join(BASE_DIR, "loaders", "db_loader.py")
 
+# ML Engine bridge (lives in ml_engine/pipelines/)
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+ML_RUNNER = os.path.join(PROJECT_ROOT, "ml_engine", "pipelines", "ml_runner.py")
+
 def run_task(script_path, task_name):
     """Helper function to execute a python script and log the result."""
     print(f"--- [START] Starting {task_name} at {datetime.now()} ---")
     try:
         # Runs the script as a separate process utilizing the same python executable (venv)
         result = subprocess.run([sys.executable, script_path], check=True, capture_output=True, text=True)
+        print(result.stdout)
         print(f"[SUCCESS] {task_name} Finished successfully.")
         return True
     except subprocess.CalledProcessError as e:
@@ -25,7 +30,7 @@ def run_task(script_path, task_name):
         return False
 
 def full_pipeline_job():
-    """The master sequence that runs the entire ETL process."""
+    """The master sequence that runs the entire ETL + ML process."""
     print(f"\n[ALERT] SCHEDULED RUN STARTED: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 1. Extraction
@@ -33,7 +38,9 @@ def full_pipeline_job():
         # 2. Transformation (Only if collection succeeded)
         if run_task(PROCESSOR, "Data Cleaning"):
             # 3. Loading (Only if cleaning succeeded)
-            run_task(LOADER, "Database Loading")
+            if run_task(LOADER, "Database Loading"):
+                # 4. ML Analysis (Only if loading succeeded)
+                run_task(ML_RUNNER, "ML Engine Analysis")
             
     print(f"[END] PIPELINE RUN FINISHED at {datetime.now()}\n")
 

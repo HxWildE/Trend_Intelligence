@@ -2,8 +2,10 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Load variables from .env file
-load_dotenv()
+# Explicitly find the .env at the project root (works regardless of cwd)
+# override=True ensures .env values win over any stale shell env vars
+_ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=_ENV_FILE, override=True)
 
 class Config:
     # 📂 1. Directory Paths
@@ -27,11 +29,11 @@ class Config:
 
     # 🗄️ 3. Database Configurations
     # Postgres (SQL)
-    DB_USER = os.getenv("DB_USER", "postgres")
-    DB_PASS = os.getenv("DB_PASSWORD", "")
-    DB_HOST = os.getenv("DB_HOST", "localhost")
-    DB_PORT = os.getenv("DB_PORT", "5432")
-    DB_NAME = os.getenv("DB_NAME", "reddit_db")
+    DB_USER = os.getenv("DB_USER", "postgres").strip()
+    DB_PASS = os.getenv("DB_PASSWORD", "").strip()
+    DB_HOST = os.getenv("DB_HOST", "localhost").strip()
+    DB_PORT = os.getenv("DB_PORT", "5432").strip()
+    DB_NAME = os.getenv("DB_NAME", "reddit_db").strip()
     
     SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 

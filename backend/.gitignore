@@ -2,3 +2,31 @@ venv/
 __pycache__/
 *.pyc
 .env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual env
+venv/
+.env/
+
+# ML models
+*.pt
+*.bin
+
+# Data
+*.csv
+*.json
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
