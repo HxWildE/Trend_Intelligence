@@ -33,7 +33,7 @@ export default function SearchBar({
   onChange,
   onSearch,
   loading = false,
-  placeholder = "e.g. IPL 2025, AI tools, Budget…",
+  placeholder = "e.g. IPL 2026, AI tools, Budget…",
 }) {
   /**
    * handleKey – intercepts Enter key press inside the input and

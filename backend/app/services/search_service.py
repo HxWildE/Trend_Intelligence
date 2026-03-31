@@ -1,22 +1,119 @@
+from sqlalchemy import text
 from app.db.connection import SessionLocal
 from app.models.search import Search
+from app.models.ml_trend_result import MLTrendResult
 from app.utils.logger import log
 from fastapi import HTTPException
+import httpx
+from nltk.sentiment import SentimentIntensityAnalyzer
 
 
-def search_logic(query: str):
-    # Calculates a trend score for the query and saves it to the DB
-    log(f"Search query: {query}")
+def _lookup_ml_score(db, query: str) -> float:
+    """
+    Look up a trend score for the query from the latest ML run.
+
+    Searches the `keywords` column of ml_trend_results for any cluster
+    whose keywords overlap with words in the query string. Returns the
+    highest matching cluster's composite score, or 0.0 if no match.
+    """
+    try:
+        latest_run = db.execute(
+            text("SELECT MAX(run_at) FROM ml_trend_results")
+        ).scalar()
+
+        if latest_run is None:
+            return 0.0
+
+        # Try each word in the query against the keywords column
+        words = [w.strip().lower() for w in query.split() if len(w.strip()) > 2]
+        best_score = 0.0
+
+        for word in words:
+            match = (
+                db.query(MLTrendResult)
+                .filter(
+                    MLTrendResult.run_at == latest_run,
+                    MLTrendResult.keywords.ilike(f"%{word}%")
+                )
+                .order_by(MLTrendResult.score.desc())
+                .first()
+            )
+            if match and match.score and match.score > best_score:
+                best_score = match.score
+
+        return round(best_score, 2)
+    except Exception:
+        return 0.0
+
+async def _live_vader_fallback(query: str) -> float:
+    """Fast real-time fetch + sentiment analysis safety net."""
+    try:
+        url = "https://www.reddit.com/search.json"
+        headers = {"User-Agent": "TrendIntelligence/1.0.FastAPI"}
+        params = {"q": query, "limit": 50, "sort": "new"}
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params, timeout=5.0)
+            
+        if response.status_code != 200:
+            return 0.0
+            
+        posts = response.json().get("data", {}).get("children", [])
+        if not posts:
+            return 0.0
+            
+        analyzer = SentimentIntensityAnalyzer()
+        sentiments = []
+        for post in posts:
+            text = post["data"].get("title", "") + " " + post["data"].get("selftext", "")
+            if text.strip():
+                score = analyzer.polarity_scores(text)["compound"]
+                sentiments.append(score)
+                
+        if not sentiments:
+            return 0.0
+            
+        avg_sentiment = sum(sentiments) / len(sentiments)
+        volume = len(posts)
+        
+        # ⚡ Fast estimation score formula (Logarithmically boosted to emulate the heavy ML engine)
+        # Reddit limits API to 50 hits. If we cap out, it's a massive trend that got truncated.
+        base_volume_score = (volume * 1.5)
+        if volume >= 49:
+            base_volume_score += 25.0 
+            
+        fast_score = base_volume_score + (avg_sentiment * 30.0)
+        return round(max(0.0, min(99.0, fast_score)), 2)
+    except Exception as e:
+        print(f"Fallback Error for {query}: {e}")
+        return 0.0
+
+async def search_logic(query: str):
+    """
+    Look up the trend score for the query from ML results and save to the DB.
+
+    The score comes from the most recent ML pipeline run: we search the
+    keywords of each topic cluster for words in the user's query and return
+    the highest matching cluster score. Falls back to 0 if the ML pipeline
+    hasn't produced data yet.
+    """
+    log(f"Search query received: {query}")
 
     try:
         db = SessionLocal()
 
-        trend_score = len(query)
+        # --- Real trend score from ML results ---
+        trend_score = _lookup_ml_score(db, query)
+        
+        # ⚡ NEW ARCHITECTURE: Live Async VADER Safety Net
+        if trend_score <= 0.0:
+            log(f"Cache miss for '{query}'. Triggering fast live VADER fallback...")
+            trend_score = await _live_vader_fallback(query)
 
         new_search = Search(
             query=query,
-            trend_score=trend_score,
-            region="Earth" 
+            trend_score=int(trend_score),
+            region="Global",
         )
 
         db.add(new_search)
@@ -26,10 +123,10 @@ def search_logic(query: str):
         return {
             "query": query,
             "trend_score": trend_score,
-            "message": "saved to DB"
+            "message": "saved to DB",
         }
     except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 #ML processing data

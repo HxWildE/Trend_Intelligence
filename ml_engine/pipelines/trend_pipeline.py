@@ -19,7 +19,7 @@ class TrendPipeline:
         self.sentiment_model = SentimentInference()
 
         self.embedder = EmbeddingModel()
-        self.clusterer = ClusterModel(n_clusters=8)
+        self.clusterer = ClusterModel(distance_threshold=1.25)
         self.labeler = TopicLabeler()
 
         self.velocity_calc = VelocityCalculator()
@@ -77,6 +77,10 @@ class TrendPipeline:
         results = []
 
         for label in topic_counts:
+            # 🗑️ Junk Filter: Discard clusters with too few posts
+            # A true trend needs at least 3 occurrences to prove structural significance
+            if topic_counts[label] < 3:
+                continue
 
             volume = topic_counts[label]
 
@@ -158,8 +162,9 @@ class TrendPipeline:
                 "score": round(score, 3)
             })
 
-        # STEP 7: Sort by score
-        return sorted(results, key=lambda x: x["score"], reverse=True)
+        # STEP 7: Sort by score and cap to Top 20 to keep Dashboard UI fast and polished
+        ranked_trends = sorted(results, key=lambda x: x["score"], reverse=True)
+        return ranked_trends[:20]
 
 
 # Optional helper (safe to keep)

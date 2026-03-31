@@ -19,8 +19,8 @@ import TrendCard from "../components/TrendCard";
 
 /* ── Quick-search shortcuts ─────────────────────────────────────── */
 const HOT_TOPICS = [
-  "IPL 2025", "Budget 2025", "AI Tools", "Stock Market",
-  "Jio Plans", "Movie Reviews", "Cricket Live", "UPSC 2025",
+  "IPL 2026", "Budget 2026", "AI Tools", "Stock Market",
+  "Jio Plans", "Movie Reviews", "Cricket Live", "UPSC 2026",
 ];
 
 /* ── Score label helper ─────────────────────────────────────────── */
@@ -39,13 +39,13 @@ function scoreLabel(s) {
 /* ── Page Component ─────────────────────────────────────────────── */
 export default function Search() {
   /** query – the current text in the search box (lifted up from SearchBar) */
-  const [query, setQuery]     = useState("");
+  const [query, setQuery] = useState("");
   /** result – the API response object: { query, trend_score } */
-  const [result, setResult]   = useState(null);
+  const [result, setResult] = useState(null);
   /** loading – true while the API call is in-flight */
   const [loading, setLoading] = useState(false);
   /** error – string message shown when the API call fails */
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
   /**
    * doSearch – validates the query then calls the service layer.

@@ -12,10 +12,10 @@ router = APIRouter()
 # Define a GET route for /search that expects a query parameter 'q'
 # The response will be validated against the SearchResponse schema
 @router.get("/search", response_model=SearchResponse)
-def search(q: str):
+async def search(q: str):
     # Processes the search query via business logic and returns the response
     # Pass the query 'q' to the business logic layer and return the calculated result
-    result = search_logic(q)
+    result = await search_logic(q)
     return result
 
 @router.get("/all-searches")

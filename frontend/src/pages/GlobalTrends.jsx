@@ -15,7 +15,8 @@
 import React, { useEffect, useState } from "react";
 import { getTrends } from "../services/api";
 import TrendCard from "../components/TrendCard";
-import Graph     from "../components/Graph";
+import Graph from "../components/Graph";
+import NewsFeed from "../components/NewsFeed";
 
 /* ── Refresh Icon ───────────────────────────────────────────────── */
 const IconRefresh = ({ spinning }) => (
@@ -36,15 +37,15 @@ const CATEGORIES = ["All", "Technology", "Sports", "Politics", "Entertainment", 
 /* ── Page Component ─────────────────────────────────────────────── */
 export default function GlobalTrends() {
   /** trends – array of { query, trend_score } objects from the API */
-  const [trends, setTrends]     = useState([]);
+  const [trends, setTrends] = useState([]);
   /** loading – true during initial fetch and manual refresh */
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   /** error – string shown when the API call fails */
-  const [error, setError]       = useState(null);
+  const [error, setError] = useState(null);
   /** spinning – keeps the refresh icon rotating for visual feedback */
   const [spinning, setSpinning] = useState(false);
   /** active – currently selected category chip (UI only) */
-  const [active, setActive]     = useState("All");
+  const [active, setActive] = useState("All");
   /** showGraph – toggles the Graph component in/out */
   const [showGraph, setShowGraph] = useState(false);
 
@@ -87,7 +88,7 @@ export default function GlobalTrends() {
             bg-orange-500/15 border border-orange-500/30">
             🌍
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-xl font-black bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
             Global Trends
           </h2>
           {!loading && (
@@ -128,6 +129,9 @@ export default function GlobalTrends() {
           </button>
         </div>
       </div>
+
+      {/* ── Live News Feed ── */}
+      <NewsFeed />
 
       {/* ── Category Filter Chips ── */}
       <div
@@ -193,18 +197,22 @@ export default function GlobalTrends() {
             </span>
             <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100
               mt-2 mb-4 tracking-tight">
-              {trends[0].query}
+              {trends[0].keywords ?? trends[0].query ?? "—"}
             </p>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-2.5 rounded-full bg-slate-200
-                dark:bg-slate-700 overflow-hidden">
-                <div
-                  className="h-full rounded-full btn-accent transition-all duration-700"
-                  style={{ width: `${Math.min(trends[0].trend_score, 100)}%` }}
-                />
+              <div className="flex-1 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                {trends[0].positive_pct !== undefined ? (
+                  <>
+                    <div className="h-full bg-emerald-400/80 transition-all duration-700" style={{ width: `${Math.round(trends[0].positive_pct * 100)}%` }} title="Positive" />
+                    <div className="h-full bg-slate-400/50 transition-all duration-700" style={{ width: `${Math.round(trends[0].neutral_pct * 100)}%` }} title="Neutral" />
+                    <div className="h-full bg-red-400/80 transition-all duration-700" style={{ width: `${Math.round(trends[0].negative_pct * 100)}%` }} title="Negative" />
+                  </>
+                ) : (
+                  <div className="h-full rounded-full btn-accent transition-all duration-700" style={{ width: `${Math.min(trends[0].score ?? trends[0].trend_score ?? 0, 100)}%` }} />
+                )}
               </div>
               <span className="text-sm font-bold font-mono text-slate-600 dark:text-slate-300">
-                {trends[0].trend_score}
+                {trends[0].score ?? trends[0].trend_score ?? 0}
               </span>
             </div>
           </div>

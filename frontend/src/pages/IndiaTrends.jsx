@@ -18,6 +18,7 @@ import { getRegionTrends } from "../services/api";
 import StateDropdown, { getFlag } from "../components/StateDropdown";
 import TrendCard                  from "../components/TrendCard";
 import Graph                      from "../components/Graph";
+import NewsFeed                   from "../components/NewsFeed";
 
 /* ── Quick-pick shortcut states ─────────────────────────────────── */
 const QUICK = ["Delhi", "Maharashtra", "Karnataka", "Tamil Nadu", "Uttar Pradesh", "Gujarat"];
@@ -76,7 +77,7 @@ export default function IndiaTrends() {
             bg-orange-500/15 border border-orange-500/30">
             🗺️
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-xl font-black bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
             India Region Trends
           </h2>
           {fetched && !loading && (
@@ -174,6 +175,9 @@ export default function IndiaTrends() {
         ))}
       </div>
 
+      {/* ── Live State News Feed ── */}
+      <NewsFeed region={state} />
+
       {/* ── Loading Skeleton ── */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -234,17 +238,17 @@ export default function IndiaTrends() {
             </div>
             <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100
               mb-4 tracking-tight">
-              {data[0].query}
+              {data[0].keywords ?? data[0].query ?? "—"}
             </p>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
                 <div
                   className="h-full rounded-full btn-accent transition-all duration-700"
-                  style={{ width: `${Math.min(data[0].trend_score, 100)}%` }}
+                  style={{ width: `${Math.min(data[0].score ?? data[0].trend_score ?? 0, 100)}%` }}
                 />
               </div>
               <span className="text-sm font-bold font-mono text-slate-600 dark:text-slate-300">
-                {data[0].trend_score}
+                {data[0].score ?? data[0].trend_score ?? 0}
               </span>
             </div>
           </div>

@@ -102,10 +102,25 @@ def fetch_reddit_data(source_type, query, total_needed):
     pbar.close()
     return all_posts
 
+from sqlalchemy import create_engine, text
+
 def build_dataset():
     # Utilizing configuration settings instead of hardcoding
     subreddits = config.SUBREDDITS
     keywords = config.KEYWORDS
+    
+    # 🌟 NEW ARCHITECTURE: Fetch dynamic user searches from the database!
+    try:
+        engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT query FROM searches ORDER BY id DESC LIMIT 15"))
+            db_keywords = [row[0] for row in result.fetchall()]
+            if db_keywords:
+                print(f"[INFO] Found {len(db_keywords)} custom user searches in database! Adding to scrape queue...")
+                keywords = list(set(keywords + db_keywords))
+    except Exception as e:
+        print(f"[WARNING] Could not connect to DB for custom keywords. Using defaults. ({e})")
+
     total_needed = 20 # Can be adjusted or pulled from config.POST_LIMIT later 
     
     final_list = []
