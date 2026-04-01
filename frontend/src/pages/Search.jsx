@@ -16,11 +16,12 @@ import React, { useState } from "react";
 import { searchQuery } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import TrendCard from "../components/TrendCard";
+import NewsFeed from "../components/NewsFeed";
 
 /* ── Quick-search shortcuts ─────────────────────────────────────── */
 const HOT_TOPICS = [
-  "IPL 2025", "Budget 2025", "AI Tools", "Stock Market",
-  "Jio Plans", "Movie Reviews", "Cricket Live", "UPSC 2025",
+  "IPL 2026", "Budget 2026", "AI Tools", "Stock Market",
+  "Jio Plans", "Movie Reviews", "Cricket Live", "UPSC 2026",
 ];
 
 /* ── Score label helper ─────────────────────────────────────────── */
@@ -39,13 +40,13 @@ function scoreLabel(s) {
 /* ── Page Component ─────────────────────────────────────────────── */
 export default function Search() {
   /** query – the current text in the search box (lifted up from SearchBar) */
-  const [query, setQuery]     = useState("");
+  const [query, setQuery] = useState("");
   /** result – the API response object: { query, trend_score } */
-  const [result, setResult]   = useState(null);
+  const [result, setResult] = useState(null);
   /** loading – true while the API call is in-flight */
   const [loading, setLoading] = useState(false);
   /** error – string message shown when the API call fails */
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
   /**
    * doSearch – validates the query then calls the service layer.
@@ -182,6 +183,13 @@ export default function Search() {
             {scoreLabel(result.trend_score)}
           </p>
           <TrendCard trend={result} index={0} />
+        </div>
+      )}
+
+      {/* ── Topic News Feed ── */}
+      {result && !loading && (
+        <div className="mt-12 w-full animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          <NewsFeed topic={result.query} />
         </div>
       )}
     </>

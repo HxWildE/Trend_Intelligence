@@ -3,3 +3,5 @@ uvicorn
 pydantic
 sqlalchemy
 python-dotenv
+redis
+rq

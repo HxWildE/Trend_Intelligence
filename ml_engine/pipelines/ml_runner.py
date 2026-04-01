@@ -121,6 +121,11 @@ def run_ml_pipeline():
             schema_sql = f.read()
         with engine.begin() as conn:
             conn.execute(text(schema_sql))
+            
+            # 🧹 NEW ARCHITECTURE: 24-HOUR AUTO CLEANUP
+            print("[INFO] Purging old records (>24 hours) to prevent infinite database growth...")
+            conn.execute(text("DELETE FROM reddit_trends WHERE processed_at < NOW() - INTERVAL '24 hours'"))
+            conn.execute(text("DELETE FROM ml_trend_results WHERE run_at < NOW() - INTERVAL '24 hours'"))
     else:
         print(f"[WARNING] Schema file not found at {schema_path}")
 

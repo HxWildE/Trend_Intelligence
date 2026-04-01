@@ -1,4 +1,5 @@
 import os
+import urllib.parse
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -17,15 +18,22 @@ class Config:
     CLEAN_DATA_PATH = os.path.join(DATA_DIR, "reddit_data_cleaned.csv")
 
     # 🌐 2. Reddit Scraping Settings
-    SUBREDDITS = ["technology", "news", "science", "business", "worldnews"]
-    KEYWORDS = ["AI", "Nvidia", "GPT", "crypto", "startup"]
+    # 🌐 2. Reddit Scraping Settings
+    SUBREDDITS = [
+        "technology", "worldnews", "investing", "ArtificialInteligence", "developersIndia", 
+        "science", "MachineLearning", "economy", "futurology", "movies", "television", 
+        "gaming", "pcgaming", "legaladvice", "LawFirm", "sports", "soccer", "nba", 
+        "fitness", "nutrition", "popculturechat", "gadgets", "CryptoCurrency", "books", "Music"
+    ]
+    KEYWORDS = ["AI", "SaaS", "Climate Change", "Startups", "Remote Work", "Cybersecurity", "Electric Vehicles"]
     
     POST_LIMIT = 50       # Number of posts per category
     COMMENT_LIMIT = 5     # Number of comments per post
-    USER_AGENT = "pc:trend_intelligence:v1.0 (by /u/abdullah_khan_nitw)"
+    USER_AGENT = ".."
     
     REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID", "")
     REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET", "")
+    NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
 
     # 🗄️ 3. Database Configurations
     # Postgres (SQL)
@@ -35,11 +43,9 @@ class Config:
     DB_PORT = os.getenv("DB_PORT", "5432").strip()
     DB_NAME = os.getenv("DB_NAME", "reddit_db").strip()
     
-    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{urllib.parse.quote_plus(DB_PASS)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-    # MongoDB (NoSQL)
-    MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    MONGO_DB_NAME = "trend_intelligence_db"
+
 
     # 🕒 4. Scheduler Settings
     RUN_EVERY_HOURS = 1

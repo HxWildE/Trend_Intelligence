@@ -21,8 +21,8 @@ def run_task(script_path, task_name):
     print(f"--- [START] Starting {task_name} at {datetime.now()} ---")
     try:
         # Runs the script as a separate process utilizing the same python executable (venv)
-        result = subprocess.run([sys.executable, script_path], check=True, capture_output=True, text=True)
-        print(result.stdout)
+        # We REMOVED capture_output=True so that tqdm progress bars print live to the user terminal!
+        result = subprocess.run([sys.executable, script_path], check=True)
         print(f"[SUCCESS] {task_name} Finished successfully.")
         return True
     except subprocess.CalledProcessError as e:

@@ -15,7 +15,8 @@
 import React, { useEffect, useState } from "react";
 import { getTrends } from "../services/api";
 import TrendCard from "../components/TrendCard";
-import Graph     from "../components/Graph";
+import Graph from "../components/Graph";
+import NewsFeed from "../components/NewsFeed";
 
 /* ── Refresh Icon ───────────────────────────────────────────────── */
 const IconRefresh = ({ spinning }) => (
@@ -30,21 +31,29 @@ const IconRefresh = ({ spinning }) => (
   </svg>
 );
 
-/* ── Category filter chips (UI-only, no backend filter yet) ─────── */
+/* ── Category filter chips and heuristics ─────── */
 const CATEGORIES = ["All", "Technology", "Sports", "Politics", "Entertainment", "Finance"];
+
+const CATEGORY_KEYWORDS = {
+  Technology: ["tech", "ai", "software", "app", "apple", "google", "meta", "microsoft", "cyber", "internet", "data", "robot", "crypto", "bitcoin", "digital", "phone"],
+  Sports: ["cricket", "ipl", "football", "match", "tennis", "olympics", "bcci", "fifa", "player", "tournament", "score", "wwe", "ufc", "team"],
+  Politics: ["election", "modi", "biden", "trump", "government", "parliament", "congress", "bjp", "policy", "minister", "court", "law", "vote"],
+  Entertainment: ["movie", "film", "actor", "actress", "cinema", "music", "song", "hollywood", "bollywood", "netflix", "show", "review", "box office", "singer", "concert"],
+  Finance: ["stock", "market", "budget", "economy", "nifty", "sensex", "bank", "hdfc", "sbi", "shares", "trading", "invest", "tax", "rbi"]
+};
 
 /* ── Page Component ─────────────────────────────────────────────── */
 export default function GlobalTrends() {
   /** trends – array of { query, trend_score } objects from the API */
-  const [trends, setTrends]     = useState([]);
+  const [trends, setTrends] = useState([]);
   /** loading – true during initial fetch and manual refresh */
-  const [loading, setLoading]   = useState(true);
+  const [loading, setLoading] = useState(true);
   /** error – string shown when the API call fails */
-  const [error, setError]       = useState(null);
+  const [error, setError] = useState(null);
   /** spinning – keeps the refresh icon rotating for visual feedback */
   const [spinning, setSpinning] = useState(false);
   /** active – currently selected category chip (UI only) */
-  const [active, setActive]     = useState("All");
+  const [active, setActive] = useState("All");
   /** showGraph – toggles the Graph component in/out */
   const [showGraph, setShowGraph] = useState(false);
 
@@ -78,6 +87,19 @@ export default function GlobalTrends() {
   /* Auto-fetch once when the component mounts (user navigates to /trends) */
   useEffect(() => { fetchData(); }, []);
 
+  /** getFilteredTrends – computes the displayed subset of trends based on the active category */
+  const getFilteredTrends = () => {
+    if (active === "All") return trends;
+    const keywords = CATEGORY_KEYWORDS[active] || [];
+    return trends.filter(t => {
+      const text = (t.keywords || t.query || "").toLowerCase();
+      // Match if the trend text contains ANY of the category keywords
+      return keywords.some(kw => text.includes(kw));
+    });
+  };
+
+  const displayedTrends = getFilteredTrends();
+
   return (
     <>
       {/* ── Page Header ── */}
@@ -87,21 +109,21 @@ export default function GlobalTrends() {
             bg-orange-500/15 border border-orange-500/30">
             🌍
           </div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-xl font-black bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">
             Global Trends
           </h2>
           {!loading && (
             <span className="text-xs text-slate-400 dark:text-slate-500
               bg-slate-100 dark:bg-slate-800 border border-slate-200
               dark:border-slate-700 px-2.5 py-0.5 rounded-full font-medium">
-              {trends.length} topics
+              {displayedTrends.length} topics
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
           {/* Toggle chart view */}
-          {trends.length > 0 && (
+          {displayedTrends.length > 0 && (
             <button
               onClick={() => setShowGraph((v) => !v)}
               className="px-3.5 py-2 rounded-xl text-sm font-semibold border
@@ -128,6 +150,9 @@ export default function GlobalTrends() {
           </button>
         </div>
       </div>
+
+      {/* ── Live News Feed ── */}
+      <NewsFeed />
 
       {/* ── Category Filter Chips ── */}
       <div
@@ -171,18 +196,18 @@ export default function GlobalTrends() {
       )}
 
       {/* ── Empty ── */}
-      {!loading && !error && trends.length === 0 && (
+      {!loading && !error && displayedTrends.length === 0 && (
         <div className="text-center py-16 text-slate-400">
           <div className="text-5xl mb-4 animate-float">📭</div>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">
-            No trends yet
+            No trends found for this category
           </h3>
-          <p className="text-sm">Hit refresh or check if the backend is returning data.</p>
+          <p className="text-sm">Try choosing a different category or hit refresh.</p>
         </div>
       )}
 
       {/* ── Data Views ── */}
-      {!loading && !error && trends.length > 0 && (
+      {!loading && !error && displayedTrends.length > 0 && (
         <>
           {/* Spotlight — always shows top trend */}
           <div className="rounded-2xl border border-orange-500/30 bg-orange-500/5
@@ -193,18 +218,22 @@ export default function GlobalTrends() {
             </span>
             <p className="text-2xl font-extrabold text-slate-900 dark:text-slate-100
               mt-2 mb-4 tracking-tight">
-              {trends[0].query}
+              {displayedTrends[0].keywords ?? displayedTrends[0].query ?? "—"}
             </p>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-2.5 rounded-full bg-slate-200
-                dark:bg-slate-700 overflow-hidden">
-                <div
-                  className="h-full rounded-full btn-accent transition-all duration-700"
-                  style={{ width: `${Math.min(trends[0].trend_score, 100)}%` }}
-                />
+              <div className="flex-1 h-2.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden flex">
+                {displayedTrends[0].positive_pct !== undefined ? (
+                  <>
+                    <div className="h-full bg-emerald-400/80 transition-all duration-700" style={{ width: `${Math.round(displayedTrends[0].positive_pct * 100)}%` }} title="Positive" />
+                    <div className="h-full bg-slate-400/50 transition-all duration-700" style={{ width: `${Math.round(displayedTrends[0].neutral_pct * 100)}%` }} title="Neutral" />
+                    <div className="h-full bg-red-400/80 transition-all duration-700" style={{ width: `${Math.round(displayedTrends[0].negative_pct * 100)}%` }} title="Negative" />
+                  </>
+                ) : (
+                  <div className="h-full rounded-full btn-accent transition-all duration-700" style={{ width: `${Math.min(displayedTrends[0].score ?? displayedTrends[0].trend_score ?? 0, 100)}%` }} />
+                )}
               </div>
               <span className="text-sm font-bold font-mono text-slate-600 dark:text-slate-300">
-                {trends[0].trend_score}
+                {displayedTrends[0].score ?? displayedTrends[0].trend_score ?? 0}
               </span>
             </div>
           </div>
@@ -215,10 +244,10 @@ export default function GlobalTrends() {
             - showGraph = false → TrendCard grid (shared TrendCard component)
           */}
           {showGraph ? (
-            <Graph data={trends} title="All Trends Overview" limit={12} />
+            <Graph data={displayedTrends} title={`${active} Trends Overview`} limit={12} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {trends.map((t, i) => (
+              {displayedTrends.map((t, i) => (
                 <TrendCard key={i} trend={t} index={i} />
               ))}
             </div>

@@ -56,9 +56,11 @@ def fetch_reddit_data(source_type, query, total_needed):
             response = session.get(base_url, params=params, timeout=10)
             
             if response.status_code == 429:
-                # Longer back-off sleep if Reddit blocks us
-                time.sleep(10)
-                continue
+                # Sleep heavily to clear the API rate-limit bucket, then abandon the current query 
+                # to prevent infinite loop deadlocks. (We keep whatever posts we already grabbed!)
+                print(f"\n[WARNING] Reddit Rate Limit (429) hit on {query}. Sleeping 60s then skipping to next topic...")
+                time.sleep(60)
+                break
                 
             if response.status_code != 200:
                 break
@@ -70,6 +72,11 @@ def fetch_reddit_data(source_type, query, total_needed):
 
             for post in children:
                 p = post['data']
+                title = p.get("title", "").lower()
+                
+                # Skip meta/daily-discussion threads that pollute NLP clustering
+                if any(noise in title for noise in ["megathread", "discussion thread", "daily thread", "weekly thread"]):
+                    continue
                 
                 # Fetch comments
                 comments = fetch_comments(p.get("subreddit"), p.get("id"))
@@ -102,11 +109,27 @@ def fetch_reddit_data(source_type, query, total_needed):
     pbar.close()
     return all_posts
 
+from sqlalchemy import create_engine, text
+
 def build_dataset():
     # Utilizing configuration settings instead of hardcoding
     subreddits = config.SUBREDDITS
     keywords = config.KEYWORDS
-    total_needed = 20 # Can be adjusted or pulled from config.POST_LIMIT later 
+    
+    # 🌟 NEW ARCHITECTURE: Fetch dynamic user searches from the database!
+    try:
+        engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT query FROM searches ORDER BY id DESC LIMIT 15"))
+            db_keywords = [row[0] for row in result.fetchall()]
+            if db_keywords:
+                print(f"[INFO] Found {len(db_keywords)} custom user searches in database! Adding to scrape queue...")
+                keywords = list(set(keywords + db_keywords))
+    except Exception as e:
+        print(f"[WARNING] Could not connect to DB for custom keywords. Using defaults. ({e})")
+
+    # Pulling directly from config to dynamically allow 50+ posts per topic!
+    total_needed = config.POST_LIMIT 
     
     final_list = []
     
