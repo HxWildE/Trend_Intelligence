@@ -110,23 +110,24 @@ def run_search_ml_pipeline(query: str):
         db.close()
 
 if __name__ == '__main__':
-    from rq import Worker, Queue, Connection
-    import redis as raw_redis
-
-    listen = ['search_queue']
-    # RQ requires a raw connection (decode_responses=False)
-    rq_redis = raw_redis.Redis(host='localhost', port=6379, db=0)
-
-    with Connection(rq_redis):
-        print("=================================================")
-        print("🔥 Background RQ Worker Daemon Initialised 🔥")
-        print("Connected to Redis (localhost:6379)")
-        print("Listening for jobs on correct RQ queue: 'search_queue'")
-        print("=================================================")
-        
-        worker = Worker(listen)
+    import time
+    # Initialise standard Redis connection map
+    redis_conn = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+    
+    print("=================================================")
+    print("🔥 Windows-Compatible Redis Worker Daemon Initialised 🔥")
+    print("Connected to Redis (localhost:6379)")
+    print("Listening for jobs on native queue: 'search_queue'")
+    print("=================================================")
+    
+    while True:
         try:
-            worker.work()
-        except KeyboardInterrupt:
-            print("Worker shutting down.")
+            # Block until a job is pushed to the queue
+            result = redis_conn.brpop("search_queue", timeout=0)
+            if result:
+                _, query = result
+                run_search_ml_pipeline(query)
+        except Exception as e:
+            print(f"[{datetime.datetime.now()}] ❌ Worker Loop Error: {e}")
+            time.sleep(5)
 

@@ -115,7 +115,7 @@ NEWS_API -->|"articles JSON"| VADER
 VADER -->|"NLTK VADER compound score\n→ fast_score formula"| SS
 
 %% Enqueue worker job
-SS -->|"③ rq.Queue.enqueue()\nPushes query → search_queue"| REDIS_Q[("Redis\nList: search_queue")]:::cache
+SS -->|"③ LPUSH query → search_queue"| REDIS_Q[("Redis\nList: search_queue")]:::cache
 
 %% Save search record
 SS -->|"④ INSERT INTO searches\n(query, trend_score, region='Global')"| PG_SEARCH[("🐘 PostgreSQL\nsearches\nquery · trend_score · region")]:::store
@@ -125,7 +125,7 @@ SS -->|"⑤ Return JSON\n{query, trend_score}"| API
 API --> GW --> USER
 
 %% Worker daemon
-REDIS_Q -->|"rq.Worker daemon\npops query string"| WORKER["🤖 worker.py (rq worker)\n① Scrapes Live Reddit Posts\n② Spawns NER & VADER NLP\n③ Embeds & KMeans Clusters posts\n④ TF-IDF extracts Topic Labels"]:::worker
+REDIS_Q -->|"BRPOP (blocking)\npops query string"| WORKER["🤖 worker.py (Custom Daemon)\n① Scrapes Live Reddit Posts\n② Spawns NER & VADER NLP\n③ Embeds & KMeans Clusters posts\n④ TF-IDF extracts Topic Labels"]:::worker
 WORKER -->|"INSERT MLTrendResult\nrun_at = now() · ~1-3 rows"| PG_ML
 ```
 

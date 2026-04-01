@@ -59,9 +59,9 @@ subgraph Backend["⚡ Backend  (FastAPI + Uvicorn : localhost:8000)"]
 end
 
 %% ══════════════════════════════════════════════════════════════════════════
-%% LAYER 4 — BACKGROUND WORKER (RQ Worker Daemon)
+%% LAYER 4 — BACKGROUND WORKER (Custom Redis Daemon)
 %% ══════════════════════════════════════════════════════════════════════════
-Worker["🤖 RQ Worker\nListens on 'search_queue'\nRuns full ML TrendPipeline\nWrites result → PostgreSQL"]:::worker
+Worker["🤖 worker.py\nBlocking BRPOP on 'search_queue'\nRuns full ML TrendPipeline\nWrites result → PostgreSQL"]:::worker
 
 %% ══════════════════════════════════════════════════════════════════════════
 %% LAYER 5 — ETL DATA PIPELINE (Scheduled, hourly)
@@ -143,7 +143,7 @@ S_Region -->|"Filter subreddits ILIKE state"| PG_ML
 S_News -->|"Fetch articles"| API_News
 
 %% — Redis Queue → Worker
-Redis_Queue -->|"rq.Worker fetches job"| Worker
+Redis_Queue -->|"BRPOP (blocking pop)"| Worker
 Worker -->|"Extensive NLP & Clustering\nWrite MLTrendResult row"| PG_ML
 
 %% — ETL Pipeline

@@ -30,7 +30,7 @@ We utilize an orchestrated blend of real-time caching, asynchronous workers, and
 ![PostgreSQL](https://img.shields.io/badge/postgresql-4169e1?style=for-the-badge&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 
 - **PostgreSQL:** Reliable structured warehouse containing `reddit_trends` (raw text details) and `ml_trend_results` (fully computed topic structures).
-- **Redis & Python `rq` (Redis Queue):** Completely decodes request overhead safely, routing complex ML pipeline lookups seamlessly to background workers while caching (TTL: 60s) instant fallback predictions.
+- **Redis & Native Custom Worker:** Completely decodes request overhead safely, routing complex ML pipeline lookups seamlessly to background workers (Windows compatible via `brpop`) while caching (TTL: 60s) instant fallback predictions.
 - **Docker Compose:** Streamlines booting the Gateway, PostgreSQL, and Redis in unison.
 
 ### 4. **Modern Frontend**
@@ -94,11 +94,10 @@ python data_pipeline\schedulers\cron_jobs.py
 uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
 ```
 
-**Terminal 4 (`rq` ML Background Worker):**
+**Terminal 4 (Windows-Compatible Redis Worker):**
 ```bash
 .\venv\Scripts\activate
-cd backend
-rq worker search_queue
+python backend/worker.py
 ```
 
 ### Step 5: Start the React Frontend
@@ -174,9 +173,9 @@ subgraph Backend["⚡ Backend  (FastAPI + Uvicorn : localhost:8000)"]
 end
 
 %% ══════════════════════════════════════════════════════════════════════════
-%% LAYER 4 — BACKGROUND WORKER (RQ Worker Daemon)
+%% LAYER 4 — BACKGROUND WORKER (Custom Redis Daemon)
 %% ══════════════════════════════════════════════════════════════════════════
-Worker["🤖 RQ Worker\nListens on 'search_queue'\nRuns full ML TrendPipeline\nWrites result → PostgreSQL"]:::worker
+Worker["🤖 worker.py\nBlocking BRPOP on 'search_queue'\nRuns full ML TrendPipeline\nWrites result → PostgreSQL"]:::worker
 
 %% ══════════════════════════════════════════════════════════════════════════
 %% LAYER 5 — ETL DATA PIPELINE (Scheduled, hourly)
@@ -258,7 +257,7 @@ S_Region -->|"Filter subreddits ILIKE state"| PG_ML
 S_News -->|"Fetch articles"| API_News
 
 %% — Redis Queue → Worker
-Redis_Queue -->|"rq.Worker fetches job"| Worker
+Redis_Queue -->|"BRPOP (blocking pop)"| Worker
 Worker -->|"Extensive NLP & Clustering\nWrite MLTrendResult row"| PG_ML
 
 %% — ETL Pipeline
@@ -303,7 +302,7 @@ NEWS_API -->|"articles JSON"| VADER
 VADER -->|"NLTK VADER compound score\n→ fast_score formula"| SS
 
 %% Enqueue worker job
-SS -->|"③ rq.Queue.enqueue()\nPushes query → search_queue"| REDIS_Q[("Redis\nList: search_queue")]:::cache
+SS -->|"③ LPUSH query → search_queue"| REDIS_Q[("Redis\nList: search_queue")]:::cache
 
 %% Save search record
 SS -->|"④ INSERT INTO searches\n(query, trend_score, region='Global')"| PG_SEARCH[("🐘 PostgreSQL\nsearches\nquery · trend_score · region")]:::store
@@ -313,7 +312,7 @@ SS -->|"⑤ Return JSON\n{query, trend_score}"| API
 API --> GW --> USER
 
 %% Worker daemon
-REDIS_Q -->|"rq.Worker daemon\npops query string"| WORKER["🤖 worker.py (rq worker)\n① Scrapes Live Reddit Posts\n② Spawns NER & VADER NLP\n③ Embeds & KMeans Clusters posts\n④ TF-IDF extracts Topic Labels"]:::worker
+REDIS_Q -->|"BRPOP (blocking)\npops query string"| WORKER["🤖 worker.py (Custom Daemon)\n① Scrapes Live Reddit Posts\n② Spawns NER & VADER NLP\n③ Embeds & KMeans Clusters posts\n④ TF-IDF extracts Topic Labels"]:::worker
 WORKER -->|"INSERT MLTrendResult\nrun_at = now() · ~1-3 rows"| PG_ML
 ```
 

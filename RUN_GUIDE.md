@@ -42,10 +42,9 @@ This terminal constantly listens to Redis for heavy Machine Learning tasks (Clus
    ```cmd
    .\venv\Scripts\activate
    ```
-3. Start the RQ worker:
+3. Start the Background Worker:
    ```cmd
-   cd backend
-   rq worker search_queue
+   python backend\worker.py
    ```
 *(Leave this terminal running!)*
 

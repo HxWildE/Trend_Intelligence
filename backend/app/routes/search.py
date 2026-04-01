@@ -33,17 +33,8 @@ async def search(q: str):
 
     # 3. ⚡ Enqueue Heavy ML Task to Background Worker via Redis
     if redis_conn:
-        # Pushes Job to Redis List "search_queue" via rq
-        try:
-            from rq import Queue
-            import redis as raw_redis
-            
-            # RQ strictly requires bytes, so we create a native non-decoded connection
-            rq_redis = raw_redis.Redis(host='localhost', port=6379, db=0)
-            q = Queue('search_queue', connection=rq_redis)
-            q.enqueue("worker.run_search_ml_pipeline", query, job_timeout=300)
-        except Exception as e:
-            print(f"RQ Enqueue Error: {e}")
+        # Pushes Job to Redis List "search_queue"
+        redis_conn.lpush("search_queue", query)
 
     # 4. ⚡ Update Redis Cache (TTL = 60 seconds)
     if redis_conn:
