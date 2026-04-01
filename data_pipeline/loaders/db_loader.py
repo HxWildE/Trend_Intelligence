@@ -1,6 +1,5 @@
 import pandas as pd
 from sqlalchemy import create_engine, text
-from pymongo import MongoClient, UpdateOne
 import os
 import sys
 
@@ -11,8 +10,6 @@ from config import config
 class DataLoader:
     def __init__(self):
         self.pg_url = config.SQLALCHEMY_DATABASE_URI
-        self.mongo_url = config.MONGO_URI
-        self.mongo_db_name = config.MONGO_DB_NAME
 
     def load_to_postgres(self, df, table_name):
         """Upserts a pandas DataFrame into a Postgres table using a temp table."""
@@ -57,27 +54,7 @@ class DataLoader:
         except Exception as e:
             print(f"[ERROR] Postgres Load Error: {e}")
 
-    def load_to_mongodb(self, df, collection_name):
-        """Upserts a pandas DataFrame as JSON documents into MongoDB."""
-        try:
-            with MongoClient(self.mongo_url) as client:
-                db = client[self.mongo_db_name]
-                collection = db[collection_name]
-                
-                data_dict = df.to_dict(orient='records')
-                
-                if data_dict:
-                    # Using bulk_write for efficiency and upsert to avoid duplicates in Mongo
-                    operations = [
-                        UpdateOne({'post_id': row.get('post_id')}, {'$set': row}, upsert=True)
-                        for row in data_dict
-                    ]
-                    result = collection.bulk_write(operations)
-                    print(f"[SUCCESS] MongoDB '{collection_name}': {result.upserted_count} new, {result.modified_count} updated.")
-                else:
-                    print("[WARNING] No data found for MongoDB.")
-        except Exception as e:
-            print(f"[ERROR] MongoDB Load Error: {e}")
+
 
 if __name__ == "__main__":
     loader = DataLoader()
@@ -120,8 +97,7 @@ if __name__ == "__main__":
         existing_cols = [c for c in required_cols if c in pg_df.columns]
         pg_df = pg_df[existing_cols]
             
-        # Execute Loads
-        loader.load_to_mongodb(df, "raw_reddit_posts")
+        # Execute Load
         loader.load_to_postgres(pg_df, "reddit_trends")
         
     else:

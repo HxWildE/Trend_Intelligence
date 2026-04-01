@@ -26,16 +26,26 @@ export default function Graph({ data = [], title = "Trend Chart", limit = 10 }) 
   const items = data.slice(0, limit);
 
   // Normalise field names: ML data uses `score` + `keywords`, search data uses `trend_score` + `query`
-  const normalised = items.map((d) => ({
-    label: d.keywords ?? d.query ?? "—",
-    score: d.score ?? d.trend_score ?? 0,
-  }));
+  const normalised = items.map((d) => {
+    let rawLabel = d.keywords ?? d.query ?? "—";
+    
+    // Parse out messy comma-separated tuples (.si, aivideos, etc) into clean short titles
+    if (rawLabel.includes(",")) {
+      const parts = rawLabel.split(',').map(s => s.trim().replace(/^[^a-z0-9]+/i, '')).filter(Boolean);
+      rawLabel = parts.slice(0, 2).join(', ');
+    }
+
+    return {
+      label: rawLabel,
+      score: d.score ?? d.trend_score ?? 0,
+    };
+  });
 
   const maxScore = Math.max(...normalised.map((d) => d.score), 1);
 
   /* SVG layout constants */
   const ROW_H = 40;   // height per bar row
-  const LABEL_W = 140;  // left column width for query labels
+  const LABEL_W = 160;  // left column width for query labels
   const BAR_AREA = 220;  // width of the bar + score area
   const PAD = 16;   // top/bottom padding
   const SVG_W = LABEL_W + BAR_AREA + 8;
@@ -84,8 +94,8 @@ export default function Graph({ data = [], title = "Trend Chart", limit = 10 }) 
                   className="fill-slate-500 dark:fill-slate-400"
                   style={{ fontFamily: "Inter, sans-serif" }}
                 >
-                  {item.label.length > 18
-                    ? item.label.slice(0, 17) + "…"
+                  {item.label.length > 25
+                    ? item.label.slice(0, 24) + "…"
                     : item.label}
                 </text>
 

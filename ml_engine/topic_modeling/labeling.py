@@ -3,7 +3,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 CUSTOM_STOP_WORDS = list(ENGLISH_STOP_WORDS) + [
     "wants", "knows", "says", "did", "does", "doing", "just", "like", 
     "make", "get", "got", "good", "bad", "new", "really", "want",
-    "need", "think", "people", "time", "day", "way", "going", "know"
+    "need", "think", "people", "time", "day", "way", "going", "know",
+    "megathread", "thread", "reddit", "sub", "subreddit", "post", "comment",
+    "edit", "deleted", "removed", "thanks", "hate", "love", "feel", "freaky",
+    "shown", "film", "movie", "game", "treating", "treated", "work", "vs",
+    "ve", "ll", "re", "don", "didn", "doesn", "won", "wouldn", "couldn", "shouldn", "porn"
 ]
 
 class TopicLabeler:

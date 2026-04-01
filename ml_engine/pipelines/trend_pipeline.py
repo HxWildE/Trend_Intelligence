@@ -6,6 +6,7 @@ from ml_engine.sentiment.inference import SentimentInference
 from ml_engine.topic_modeling.embeddings import EmbeddingModel
 from ml_engine.topic_modeling.clustering import ClusterModel
 from ml_engine.topic_modeling.labeling import TopicLabeler
+from ml_engine.region_detection.region_service import RegionService
 
 from ml_engine.trend_detection.velocity import VelocityCalculator
 from ml_engine.trend_detection.acceleration import AccelerationCalculator
@@ -21,6 +22,7 @@ class TrendPipeline:
         self.embedder = EmbeddingModel()
         self.clusterer = ClusterModel(distance_threshold=1.25)
         self.labeler = TopicLabeler()
+        self.region_service = RegionService()
 
         self.velocity_calc = VelocityCalculator()
         self.acceleration_calc = AccelerationCalculator()
@@ -43,14 +45,24 @@ class TrendPipeline:
         sentiments = []
         sentiment_labels = []
 
-        # STEP 1: Preprocessing + Sentiment
-        for text in raw_texts:
+        # STEP 1: Preprocessing + Sentiment + NER
+        for i, text in enumerate(raw_texts):
             processed = self.preprocessor.clean_text(text)
             normalized_texts.append(processed)
 
             sentiment = self.sentiment_model.analyze(text)
             sentiments.append(sentiment["score"])
             sentiment_labels.append(sentiment["label"])
+            
+            # 🌍 Inject Region NER dynamically
+            region_data = self.region_service.detect(text)
+            if region_data.get("regions") and metadata and i < len(metadata):
+                detected_states = ", ".join(region_data["regions"])
+                existing_sub = metadata[i].get("subreddit", "")
+                if existing_sub:
+                    metadata[i]["subreddit"] = f"{existing_sub}, {detected_states}"
+                else:
+                    metadata[i]["subreddit"] = detected_states
 
         # STEP 2: Embeddings
         embeddings = self.embedder.encode(normalized_texts)

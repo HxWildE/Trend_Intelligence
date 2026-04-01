@@ -17,8 +17,17 @@ def _lookup_ml_score(db, query: str) -> float:
     highest matching cluster's composite score, or 0.0 if no match.
     """
     try:
+        # Protect against lone LIVE_SEARCH entries hijacking MAX(run_at)
         latest_run = db.execute(
-            text("SELECT MAX(run_at) FROM ml_trend_results")
+            text("""
+                SELECT run_at
+                FROM ml_trend_results
+                WHERE subreddits NOT LIKE '%LIVE_SEARCH%'
+                GROUP BY run_at
+                HAVING COUNT(*) >= 3
+                ORDER BY run_at DESC
+                LIMIT 1
+            """)
         ).scalar()
 
         if latest_run is None:
@@ -45,6 +54,19 @@ def _lookup_ml_score(db, query: str) -> float:
     except Exception:
         return 0.0
 
+import os
+import sys
+
+# Try loading config for API Keys
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    from data_pipeline.config import config
+    NEWS_API_KEY = config.NEWS_API_KEY
+except Exception:
+    from dotenv import load_dotenv
+    load_dotenv()
+    NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+
 async def _live_vader_fallback(query: str) -> float:
     """Fast real-time fetch + sentiment analysis safety net."""
     try:
@@ -55,14 +77,40 @@ async def _live_vader_fallback(query: str) -> float:
         async with httpx.AsyncClient() as client:
             response = await client.get(url, headers=headers, params=params, timeout=5.0)
             
-        if response.status_code != 200:
-            return 0.0
+        posts = []
+        if response.status_code == 200:
+            posts = response.json().get("data", {}).get("children", [])
             
-        posts = response.json().get("data", {}).get("children", [])
+        analyzer = SentimentIntensityAnalyzer()
+        
+        # ⚡ NEW: NewsAPI Fallback if Reddit returns barely any results
+        if len(posts) < 5 and NEWS_API_KEY and NEWS_API_KEY != "your_news_api_key_here":
+            napi_url = f"https://newsapi.org/v2/everything?q={query}&language=en&sortBy=publishedAt&pageSize=100&apiKey={NEWS_API_KEY}"
+            async with httpx.AsyncClient() as client:
+                n_res = await client.get(napi_url, timeout=5.0)
+            
+            if n_res.status_code == 200:
+                n_data = n_res.json()
+                total_results = n_data.get("totalResults", 0)
+                articles = n_data.get("articles", [])
+                
+                n_sentiments = []
+                for art in articles[:20]: # Analyze top 20
+                    text_str = str(art.get("title", "")) + " " + str(art.get("description", ""))
+                    if text_str.strip():
+                        n_sentiments.append(analyzer.polarity_scores(text_str)["compound"])
+                
+                n_avg = sum(n_sentiments) / len(n_sentiments) if n_sentiments else 0.0
+                n_base_score = min(total_results * 0.8, 75.0) # Boost based on total global coverage
+                
+                if total_results > 0:
+                    fast_score = n_base_score + (n_avg * 25.0)
+                    return round(max(0.0, min(99.0, fast_score)), 2)
+            
+        # Continue with Reddit logic if we have reddit posts
         if not posts:
             return 0.0
             
-        analyzer = SentimentIntensityAnalyzer()
         sentiments = []
         for post in posts:
             text = post["data"].get("title", "") + " " + post["data"].get("selftext", "")
@@ -76,8 +124,6 @@ async def _live_vader_fallback(query: str) -> float:
         avg_sentiment = sum(sentiments) / len(sentiments)
         volume = len(posts)
         
-        # ⚡ Fast estimation score formula (Logarithmically boosted to emulate the heavy ML engine)
-        # Reddit limits API to 50 hits. If we cap out, it's a massive trend that got truncated.
         base_volume_score = (volume * 1.5)
         if volume >= 49:
             base_volume_score += 25.0 
@@ -99,9 +145,8 @@ async def search_logic(query: str):
     """
     log(f"Search query received: {query}")
 
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-
         # --- Real trend score from ML results ---
         trend_score = _lookup_ml_score(db, query)
         
@@ -118,7 +163,6 @@ async def search_logic(query: str):
 
         db.add(new_search)
         db.commit()
-        db.close()
 
         return {
             "query": query,
@@ -126,7 +170,10 @@ async def search_logic(query: str):
             "message": "saved to DB",
         }
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()
 
 
 #ML processing data
@@ -142,43 +189,42 @@ def call_ml(query: str):
 def get_all_searches():
     # Retrieves all past search queries from the DB
     db = SessionLocal()
+    try:
+        data = db.query(Search).all()
 
-    data = db.query(Search).all()
-
-    result = []
-    for item in data:
-        result.append({
-            "id": item.id,
-            "query": item.query,
-            "trend_score": item.trend_score
-        })
-
-    db.close()
-    return result
+        result = []
+        for item in data:
+            result.append({
+                "id": item.id,
+                "query": item.query,
+                "trend_score": item.trend_score
+            })
+        return result
+    finally:
+        db.close()
 
 
 def get_search_by_id(search_id: int):
     # Fetches a specific search record by its DB ID
     db = SessionLocal()
+    try:
+        data = db.query(Search).filter(Search.id == search_id).first()
 
-    data = db.query(Search).filter(Search.id == search_id).first()
+        if not data:
+            raise HTTPException(status_code=404, detail="Search not found")
 
-    db.close()
-
-    if not data:
-        raise HTTPException(status_code=404, detail="Search not found")
-
-    return {
-        "id": data.id,
-        "query": data.query,
-        "trend_score": data.trend_score
-    }
+        return {
+            "id": data.id,
+            "query": data.query,
+            "trend_score": data.trend_score
+        }
+    finally:
+        db.close()
 
 def delete_search(search_id: int):
     # Removes a specific search record from the DB by ID
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-
         data = db.query(Search).filter(Search.id == search_id).first()
 
         if not data:
@@ -187,9 +233,12 @@ def delete_search(search_id: int):
         db.delete(data)
         db.commit()
 
-        db.close()
-
         return {"message": "deleted"}
 
+    except HTTPException:
+        raise
     except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db.close()

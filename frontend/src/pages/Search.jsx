@@ -16,6 +16,7 @@ import React, { useState } from "react";
 import { searchQuery } from "../services/api";
 import SearchBar from "../components/SearchBar";
 import TrendCard from "../components/TrendCard";
+import NewsFeed from "../components/NewsFeed";
 
 /* ── Quick-search shortcuts ─────────────────────────────────────── */
 const HOT_TOPICS = [
@@ -182,6 +183,13 @@ export default function Search() {
             {scoreLabel(result.trend_score)}
           </p>
           <TrendCard trend={result} index={0} />
+        </div>
+      )}
+
+      {/* ── Topic News Feed ── */}
+      {result && !loading && (
+        <div className="mt-12 w-full animate-fade-up" style={{ animationDelay: "0.2s" }}>
+          <NewsFeed topic={result.query} />
         </div>
       )}
     </>

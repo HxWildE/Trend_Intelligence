@@ -18,17 +18,18 @@ except Exception:
 router = APIRouter()
 
 @router.get("/news/realtime")
-def get_realtime_news(region: str = None):
+def get_realtime_news(region: str = None, topic: str = None):
     """
     Fetches the top latest news from HackerNews and NewsAPI, 
     summarizes them, and returns a unified json feed.
+    If 'topic' is provided, fetches matching news globally.
     If 'region' is provided (e.g. 'Maharashtra'), ignores HackerNews 
     and selectively searches NewsAPI for local regional breaking news.
     """
     news_feed = []
 
-    # 1. Hacker News Fetch (Only if NO state is physically selected)
-    if not region or region.lower() == "india":
+    # 1. Hacker News Fetch (Only if NO state or topic is physically selected)
+    if not region and not topic:
         try:
             hn_res = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json", timeout=5)
             if hn_res.status_code == 200:
@@ -54,8 +55,10 @@ def get_realtime_news(region: str = None):
     # 2. News API Fetch
     if NEWS_API_KEY and NEWS_API_KEY != "your_news_api_key_here":
         try:
-            # Dynamically switch between General Headlines or Local Breaking queries
-            if region and region.lower() != "india":
+            # Dynamically switch between General Headlines, Topic, or Local Breaking queries
+            if topic:
+                url = f"https://newsapi.org/v2/everything?q={topic}&language=en&sortBy=publishedAt&pageSize=6&apiKey={NEWS_API_KEY}"
+            elif region and region.lower() != "india":
                 url = f"https://newsapi.org/v2/everything?q={region}&language=en&sortBy=publishedAt&pageSize=6&apiKey={NEWS_API_KEY}"
             else:
                 url = f"https://newsapi.org/v2/top-headlines?country=in&language=en&pageSize=6&apiKey={NEWS_API_KEY}"

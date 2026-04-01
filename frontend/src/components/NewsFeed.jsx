@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 
-export default function NewsFeed({ region }) {
+export default function NewsFeed({ region, topic }) {
   const [news, setNews] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -8,9 +8,12 @@ export default function NewsFeed({ region }) {
     const fetchNews = async () => {
       setLoading(true);
       try {
-        const url = region && region !== "India"
-          ? `http://127.0.0.1:8000/news/realtime?region=${region}`
-          : `http://127.0.0.1:8000/news/realtime`;
+        let url = `http://127.0.0.1:8080/news/realtime`;
+        if (topic) {
+          url += `?topic=${encodeURIComponent(topic)}`;
+        } else if (region && region !== "India") {
+          url += `?region=${encodeURIComponent(region)}`;
+        }
         
         const res = await fetch(url);
         const data = await res.json();
@@ -22,7 +25,7 @@ export default function NewsFeed({ region }) {
       }
     };
     fetchNews();
-  }, [region]);
+  }, [region, topic]);
 
   if (loading) {
     return (
@@ -30,7 +33,7 @@ export default function NewsFeed({ region }) {
          <div className="flex items-center gap-2 mb-4 animate-fade-up">
             <span className="text-xl">📰</span>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {region && region !== "India" ? `Live ${region} News` : "Live Global News"}
+              {topic ? `Live News for "${topic}"` : region && region !== "India" ? `Live ${region} News` : "Live Global News"}
             </h3>
          </div>
          <div className="flex gap-4 overflow-x-auto pb-4 hide-scrollbar">
@@ -49,7 +52,7 @@ export default function NewsFeed({ region }) {
       <div className="flex items-center gap-2 mb-6">
         <span className="text-2xl">📰</span>
         <h3 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-          {region && region !== "India" ? `Live ${region} News` : "Live Global News"}
+          {topic ? `Live News for "${topic}"` : region && region !== "India" ? `Live ${region} News` : "Live Global News"}
         </h3>
         <span className="px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs font-bold ml-auto shadow-sm">
           ✨ AI Summarized

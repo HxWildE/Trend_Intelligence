@@ -11,31 +11,40 @@
   }
 
   /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-slate-950; }
-  ::-webkit-scrollbar-thumb { @apply bg-slate-700 rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-500; }
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-950;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-700 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-500;
+  }
 }
 
 @layer utilities {
+
   /* Shimmer skeleton */
   .skeleton {
-    background: linear-gradient(
-      90deg,
-      theme('colors.slate.800') 25%,
-      theme('colors.slate.700') 50%,
-      theme('colors.slate.800') 75%
-    );
+    background: linear-gradient(90deg,
+        theme('colors.slate.800') 25%,
+        theme('colors.slate.700') 50%,
+        theme('colors.slate.800') 75%);
     background-size: 200% 100%;
     animation: shimmer 1.4s infinite;
   }
+
   .skeleton-light {
-    background: linear-gradient(
-      90deg,
-      theme('colors.slate.200') 25%,
-      theme('colors.slate.100') 50%,
-      theme('colors.slate.200') 75%
-    );
+    background: linear-gradient(90deg,
+        theme('colors.slate.200') 25%,
+        theme('colors.slate.100') 50%,
+        theme('colors.slate.200') 75%);
     background-size: 200% 100%;
     animation: shimmer 1.4s infinite;
   }
@@ -47,6 +56,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
   .gradient-text-light {
     background: linear-gradient(135deg, #1e293b, #64748b);
     -webkit-background-clip: text;
@@ -58,6 +68,7 @@
   .btn-accent {
     background: linear-gradient(135deg, #ff4500, #ff6b35);
   }
+
   .btn-accent:hover {
     filter: brightness(1.12);
   }
@@ -67,4 +78,51 @@
     box-shadow: 0 0 0 3px rgba(255, 69, 0, 0.2);
     border-color: #ff4500 !important;
   }
+
+  /* Glow shadows */
+  .shadow-glow-sm {
+    box-shadow: 0 4px 20px rgba(255, 69, 0, 0.08);
+  }
+  .shadow-glow-md {
+    box-shadow: 0 8px 32px rgba(255, 69, 0, 0.12);
+  }
+}
+
+/* ── Keyframe Animations ── */
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.4s ease-out both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out both;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }

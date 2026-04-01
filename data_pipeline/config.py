@@ -19,8 +19,13 @@ class Config:
 
     # 🌐 2. Reddit Scraping Settings
     # 🌐 2. Reddit Scraping Settings
-    SUBREDDITS = ["india", "askindia", "IndianStockMarket", "developersIndia", "technology", "news", "futurology", "startups", "worldnews"]
-    KEYWORDS = ["AI", "SaaS"]
+    SUBREDDITS = [
+        "technology", "worldnews", "investing", "ArtificialInteligence", "developersIndia", 
+        "science", "MachineLearning", "economy", "futurology", "movies", "television", 
+        "gaming", "pcgaming", "legaladvice", "LawFirm", "sports", "soccer", "nba", 
+        "fitness", "nutrition", "popculturechat", "gadgets", "CryptoCurrency", "books", "Music"
+    ]
+    KEYWORDS = ["AI", "SaaS", "Climate Change", "Startups", "Remote Work", "Cybersecurity", "Electric Vehicles"]
     
     POST_LIMIT = 50       # Number of posts per category
     COMMENT_LIMIT = 5     # Number of comments per post
@@ -40,9 +45,7 @@ class Config:
     
     SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{urllib.parse.quote_plus(DB_PASS)}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
-    # MongoDB (NoSQL)
-    MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
-    MONGO_DB_NAME = "trend_intelligence_db"
+
 
     # 🕒 4. Scheduler Settings
     RUN_EVERY_HOURS = 1

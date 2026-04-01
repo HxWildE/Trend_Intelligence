@@ -21,9 +21,20 @@ def get_trends(limit: int = 10):
     """
     db = SessionLocal()
     try:
-        # Find the timestamp of the most recent ML run
+        # Find the most recent ML *batch* run — defined as any run_at timestamp
+        # that produced at least 3 rows. This skips lone live-search worker inserts
+        # (which write a single row with a fresh timestamp) so they cannot hijack
+        # MAX(run_at) and hide all real pipeline results on the Global Trends page.
         latest_run = db.execute(
-            text("SELECT MAX(run_at) FROM ml_trend_results")
+            text("""
+                SELECT run_at
+                FROM ml_trend_results
+                WHERE subreddits NOT LIKE '%LIVE_SEARCH%'
+                GROUP BY run_at
+                HAVING COUNT(*) >= 3
+                ORDER BY run_at DESC
+                LIMIT 1
+            """)
         ).scalar()
 
         if latest_run is None:
@@ -33,7 +44,10 @@ def get_trends(limit: int = 10):
         # Fetch top clusters from that run, ordered by composite score DESC
         data = (
             db.query(MLTrendResult)
-            .filter(MLTrendResult.run_at == latest_run)
+            .filter(
+                MLTrendResult.run_at == latest_run,
+                MLTrendResult.subreddits.notilike('%LIVE_SEARCH%')
+            )
             .order_by(MLTrendResult.score.desc())
             .limit(limit)
             .all()

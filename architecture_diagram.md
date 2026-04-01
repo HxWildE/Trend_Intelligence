@@ -1,123 +1,8 @@
-# Trend Intelligence System
+# Trend Intelligence System — Architecture Diagram
 
-![Trend Intelligence](https://img.shields.io/badge/Status-Active-brightgreen) ![Architecture](https://img.shields.io/badge/Architecture-Hybrid%20Lambda-blue)
-
-Trend Intelligence System is a full-stack, distributed engine capable of dynamically measuring and predicting real-time global trends. By leveraging an event-driven architecture with high-speed caching and background Machine Learning workflows, the system instantly calculates the Sentiment, Velocity, and Momentum of topics comprehensively parsed from across the internet (e.g., Reddit, HackerNews).
-
----
-
-## 🛠️ Complete Technology Stack & Architecture
-
-We utilize an orchestrated blend of real-time caching, asynchronous workers, and heavy machine learning algorithms precisely tuned to isolate trends safely from social noise.
-
-### 1. **Core Backend Layer**
-![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi) ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54) ![Nginx](https://img.shields.io/badge/nginx-%23009639.svg?style=for-the-badge&logo=nginx&logoColor=white)
-
-- **FastAPI / Uvicorn:** Orchestrates the core ASGI REST APIs. Processes all incoming queries seamlessly via non-blocking asynchronous requests (`httpx`).
-- **Nginx API Gateway:** Acts as the primary entrance node (`:8080`), seamlessly tunneling external traffic down to the internal FastAPI node while applying strictly enforced connection limits.
-- **SQLAlchemy ORM:** Secures database insertions, managing bulk uploads from the data pipelines safely.
-
-### 2. **Machine Learning & NLP**
-![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white) ![scikit-learn](https://img.shields.io/badge/scikit--learn-%23F7931E.svg?style=for-the-badge&logo=scikit-learn&logoColor=white) 
-
-- **sentence-transformers (`all-MiniLM-L6-v2`):** HuggingFace transformers mathematically translate plain sentences into massive 384-dimensional dense vectors to uncover underlying similarities beyond exact keyword matches.
-- **scikit-learn (Agglomerative / KMeans):** Groups vectorized thoughts into clusters structurally, mathematically separating distinct world trends from each other.
-- **scikit-learn (TF-IDF Vectorizer):** Responsible for labeling clustered posts into 5 human-readable keywords.
-- **spaCy (`en_core_web_sm`):** Runs Named Entity Recognition (NER) to isolate locations/regions, dynamically feeding state-level tags into global posts for regional UI routing.
-- **NLTK (VADER):** Computes precise positive, negative, and neutral fractional metrics from uncleaned web chatter.
-
-### 3. **Infrastructure, Databases & Queues**
-![PostgreSQL](https://img.shields.io/badge/postgresql-4169e1?style=for-the-badge&logo=postgresql&logoColor=white) ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white) ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-
-- **PostgreSQL:** Reliable structured warehouse containing `reddit_trends` (raw text details) and `ml_trend_results` (fully computed topic structures).
-- **Redis & Python `rq` (Redis Queue):** Completely decodes request overhead safely, routing complex ML pipeline lookups seamlessly to background workers while caching (TTL: 60s) instant fallback predictions.
-- **Docker Compose:** Streamlines booting the Gateway, PostgreSQL, and Redis in unison.
-
-### 4. **Modern Frontend**
-![React](https://img.shields.io/badge/react-%2320232a.svg?style=for-the-badge&logo=react&logoColor=%2361DAFB) ![Vite](https://img.shields.io/badge/vite-%23646CFF.svg?style=for-the-badge&logo=vite&logoColor=white)
-
-- **React & Vite:** Ultra-fast hot-module reloading rendering fully modular architectures (`TrendCard`, `Graph`, etc.) with beautiful micro-animations for an impactful, native-app feel.
-
----
-
-## 🖥️ How To Run This Project Locally
-
-Follow these exact steps to run the complete environment (Databases, Redis, Nginx, ML queue, API, and Frontend).
-
-### Prerequisites
-- Docker Desktop
-- Python 3.10+
-- Node.js 18+ & npm
-
-### Step 1: Environment Setup (.env)
-Create a `.env` file at the root folder of the project. Note the mapped port of 5433 to match Docker properly!
-```env
-# PostgreSQL DB config
-DB_USER=postgres
-DB_PASSWORD=123456
-DB_HOST=localhost
-DB_PORT=5433
-DB_NAME=reddit_db
-
-# Reddit API Credentials (https://www.reddit.com/prefs/apps)
-REDDIT_CLIENT_ID=your_client_id
-REDDIT_CLIENT_SECRET=your_client_secret
-```
-
-### Step 2: Boot Infrastructure
-```bash
-docker-compose up -d
-```
-*(Verify Postgres, Redis, and Nginx containers launch via `docker ps`)*
-
-### Step 3: Set Up Python Virtual Environment
-```bash
-python -m venv venv
-.\venv\Scripts\activate
-pip install -r backend/requirements.txt
-pip install -r req-dev.txt
-pip install praw
-python -m spacy download en_core_web_sm
-```
-
-### Step 4: Run Services (3 Terminals Needed)
-
-**Terminal 2 (`cron_jobs.py` ETL):**
-```bash
-.\venv\Scripts\activate
-python data_pipeline\schedulers\cron_jobs.py
-```
-
-**Terminal 3 (FastAPI Server):**
-```bash
-.\venv\Scripts\activate
-uvicorn app.main:app --app-dir backend --reload --host 127.0.0.1 --port 8000
-```
-
-**Terminal 4 (`rq` ML Background Worker):**
-```bash
-.\venv\Scripts\activate
-cd backend
-rq worker search_queue
-```
-
-### Step 5: Start the React Frontend
-**Terminal 5 (Vite):**
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Visit `http://localhost:5173` to experience the system instantly.
-
----
-
-## 🗺️ Visual Architecture & Flow Diagrams
-
-### 1. High-Level Core Architecture
 ```mermaid
 graph TD
+
 %% ── Colour palette ──────────────────────────────────────────────────────────
 classDef ui       fill:#3b82f6,stroke:#1d4ed8,color:#fff;
 classDef gateway  fill:#1e1e2e,stroke:#444,color:#fff;
@@ -158,7 +43,7 @@ subgraph Backend["⚡ Backend  (FastAPI + Uvicorn : localhost:8000)"]
     Main["main.py\nApp entry-point & router mount"]:::backend
 
     subgraph Routes["Routes Layer"]
-        R_Search["GET /search\n(routes/search.py)"]:::backend
+        R_Search["POST /search\n(routes/search.py)"]:::backend
         R_Trends["GET  /trends\n(routes/trends.py)"]:::backend
         R_Region["GET  /region\n(routes/region.py)"]:::backend
         R_News["GET  /news\n(routes/news.py)"]:::backend
@@ -218,7 +103,7 @@ end
 %% EXTERNAL APIs
 %% ══════════════════════════════════════════════════════════════════════════
 subgraph External["🌍 External APIs"]
-    API_Reddit["Reddit/HN JSON API\n(PRAW / direct HTTP)"]:::external
+    API_Reddit["Reddit JSON API\n(PRAW / direct HTTP)"]:::external
     API_News["NewsAPI.org\narticles + sentiment"]:::external
 end
 
@@ -269,88 +154,4 @@ Loader    -->|"Upsert ON CONFLICT post_id"| PG_Raw
 Loader    -->|"On ETL success\ntriggers ml_runner.py"| ML_Runner
 ML_Runner -->|"Reads batch for analysis"| PG_Raw
 Score     -->|"Writes analysed clusters"| PG_ML
-```
-
-### 2. Live Data Flow Execution Diagram
-```mermaid
-flowchart TD
-
-classDef ui       fill:#3b82f6,stroke:#1d4ed8,color:#fff;
-classDef gateway  fill:#1e1e2e,stroke:#555,color:#fff;
-classDef backend  fill:#10b981,stroke:#065f46,color:#fff;
-classDef store    fill:#ef4444,stroke:#7f1d1d,color:#fff;
-classDef cache    fill:#f97316,stroke:#c2410c,color:#fff;
-classDef worker   fill:#a21caf,stroke:#701a75,color:#fff;
-classDef external fill:#6b7280,stroke:#374151,color:#fff;
-
-USER["👤 User types query\nin Search.jsx"]:::ui
-USER -->|"GET /search?q=X"| GW["🌐 Nginx Gateway :8080"]:::gateway
-GW -->|"Proxy → :8000"| API["⚡ FastAPI\nroutes/search.py"]:::backend
-API --> SS["search_service.py\nsearch_logic(query)"]:::backend
-
-%% Branch A: ML cache hit
-SS -->|"① _lookup_ml_score()\nSELECT ml_trend_results\nWHERE keywords ILIKE '%word%'"| PG_ML[("🐘 PostgreSQL\nml_trend_results")]:::store
-PG_ML -->|"score > 0 → use it"| SS
-
-%% Branch B: ML miss → live VADER
-SS -->|"② score == 0\nCache miss → live fallback"| VADER["_live_vader_fallback()\nhttpx async GET Reddit /search.json\nlimit=50, sort=new"]:::backend
-VADER -->|"HTTPS request"| RDT["🌍 Reddit JSON API"]:::external
-RDT -->|"up to 50 posts"| VADER
-
-VADER -->|"< 5 Reddit results?\nNewsAPI fallback"| NEWS_API["🌍 NewsAPI.org\npageSize=100, sortBy=publishedAt"]:::external
-NEWS_API -->|"articles JSON"| VADER
-
-VADER -->|"NLTK VADER compound score\n→ fast_score formula"| SS
-
-%% Enqueue worker job
-SS -->|"③ rq.Queue.enqueue()\nPushes query → search_queue"| REDIS_Q[("Redis\nList: search_queue")]:::cache
-
-%% Save search record
-SS -->|"④ INSERT INTO searches\n(query, trend_score, region='Global')"| PG_SEARCH[("🐘 PostgreSQL\nsearches\nquery · trend_score · region")]:::store
-
-%% Return to user
-SS -->|"⑤ Return JSON\n{query, trend_score}"| API
-API --> GW --> USER
-
-%% Worker daemon
-REDIS_Q -->|"rq.Worker daemon\npops query string"| WORKER["🤖 worker.py (rq worker)\n① Scrapes Live Reddit Posts\n② Spawns NER & VADER NLP\n③ Embeds & KMeans Clusters posts\n④ TF-IDF extracts Topic Labels"]:::worker
-WORKER -->|"INSERT MLTrendResult\nrun_at = now() · ~1-3 rows"| PG_ML
-```
-
-### 3. ML Engine Internal Mathematical Pipeline
-```mermaid
-flowchart TD
-
-classDef process    fill:#3b82f6,stroke:#1d4ed8,color:#fff;
-classDef model      fill:#8b5cf6,stroke:#4c1d95,color:#fff;
-classDef data       fill:#f59e0b,stroke:#b45309,color:#000;
-classDef math       fill:#10b981,stroke:#065f46,color:#fff;
-
-RAW["📝 Raw Texts\nTitles & Content"]:::data
-META["📊 Metadata\nUpvotes, Subreddits, Dates"]:::data
-
-RAW --> PREPROC["🧹 PreprocessingPipeline\nRegex: Remove URLs, Emojis, Special Chars"]:::process
-
-PREPROC --> NER["🌍 RegionService (spaCy)\n`en_core_web_sm`\nExtracts Localities & States"]:::model
-NER -->|"Detects Indian States"| META_UPDATE["Inject State into Subreddits"]:::process
-META --> META_UPDATE
-META_UPDATE --> AGG["Data Assembly"]:::process
-
-PREPROC --> VADER["😊 SentimentInference (NLTK)\nVADER Lexicon\nLabels: Pos/Neu/Neg & Score (-1 to 1)"]:::model
-VADER --> AGG
-
-PREPROC --> EMBED["🧠 EmbeddingModel\n`sentence-transformers/all-MiniLM-L6-v2`\nTransforms text into 384-dimensional vectors"]:::model
-EMBED --> CLUSTER["🧩 ClusterModel\nAgglomerative Clustering / KMeans\nGroups similar vectors semantically"]:::model
-CLUSTER --> AGG
-
-PREPROC --> TFIDF["🏷️ TopicLabeler (scikit-learn)\nTF-IDF Vectorizer\nFinds top 5 keywords per Cluster"]:::model
-TFIDF --> AGG
-
-AGG --> SCORE["📈 TrendScorer\nAggregates Meta/NLP per Topic ID (Min 3 posts)"]:::math
-SCORE -->|Current vs Previous Counts| VEL["🚀 VelocityCalculator"]:::math
-SCORE -->|Current vs Previous Velocity| ACC["⚡ AccelerationCalculator"]:::math
-
-VEL & ACC --> FINAL_FORMULA["📊 Final Composite Score Formula: \n(0.35 * Volume) + (0.30 * Velocity) + \n(0.20 * Accel) + (0.15 * Sentiment)"]:::math
-
-FINAL_FORMULA --> OUTPUT["🏆 Top 20 Ranked Trends\nStructured JSON payload arrays"]:::data
 ```
